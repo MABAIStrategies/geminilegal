@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategic Defense & Exit Planning Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Add Markdown parser for AI responses -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* Custom Chart Container Styling as per requirements */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        
+        /* Custom Scrollbar for cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+
+        /* Timeline Node Styling */
+        .timeline-node {
+            transition: all 0.3s ease;
+        }
+        .timeline-node:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .active-tab {
+            border-bottom: 2px solid #1e293b;
+            color: #1e293b;
+            font-weight: 600;
+        }
+        .inactive-tab {
+            color: #64748b;
+        }
+        .inactive-tab:hover {
+            color: #334155;
+        }
+        
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            width: 20px;
+            height: 20px;
+            -webkit-animation: spin 1s linear infinite; /* Safari */
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Chat UI Specifics */
+        .chat-bubble {
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+        .chat-bubble-ai {
+            background-color: #f1f5f9;
+            color: #334155;
+            border-bottom-left-radius: 2px;
+        }
+        .chat-bubble-user {
+            background-color: #4f46e5;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+        .typing-indicator {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background-color: #94a3b8;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out both;
+            margin: 0 2px;
+        }
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-slate-800 font-sans antialiased selection:bg-slate-200">
+
+    <!-- App Container -->
+    <div id="app" class="min-h-screen flex flex-col md:flex-row max-w-7xl mx-auto bg-white shadow-2xl overflow-hidden my-4 md:rounded-xl border border-stone-200">
+
+        <!-- Navigation Sidebar -->
+        <nav class="w-full md:w-64 bg-slate-50 border-r border-stone-200 flex-shrink-0 flex flex-col">
+            <div class="p-6 border-b border-stone-200 bg-slate-100">
+                <h1 class="text-xl font-bold text-slate-800 tracking-tight">Case VZ-MAB</h1>
+                <p class="text-xs text-slate-500 mt-1 uppercase tracking-wider font-semibold">Defense & Exit Strategy</p>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto py-4">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full text-left px-6 py-3 hover:bg-slate-100 transition-colors flex items-center gap-3 active-tab">
+                    <span>📊</span> Dashboard & Tasks
+                </button>
+                <button onclick="switchTab('timeline')" id="nav-timeline" class="w-full text-left px-6 py-3 hover:bg-slate-100 transition-colors flex items-center gap-3 inactive-tab">
+                    <span>🗺️</span> Timeline Map
+                </button>
+                <button onclick="switchTab('rebuttals')" id="nav-rebuttals" class="w-full text-left px-6 py-3 hover:bg-slate-100 transition-colors flex items-center gap-3 inactive-tab">
+                    <span>🛡️</span> Rebuttals & Evidence
+                </button>
+                <button onclick="switchTab('scenarios')" id="nav-scenarios" class="w-full text-left px-6 py-3 hover:bg-slate-100 transition-colors flex items-center gap-3 inactive-tab">
+                    <span>⚖️</span> Scenarios & Risks
+                </button>
+                <button onclick="switchTab('witnesses')" id="nav-witnesses" class="w-full text-left px-6 py-3 hover:bg-slate-100 transition-colors flex items-center gap-3 inactive-tab">
+                    <span>👥</span> Witness Prep
+                </button>
+                <button onclick="switchTab('ai-tools')" id="nav-ai-tools" class="w-full text-left px-6 py-3 hover:bg-indigo-50 transition-colors flex items-center gap-3 inactive-tab text-indigo-700">
+                    <span>✨</span> AI Strategy Center
+                </button>
+            </div>
+
+            <div class="p-4 border-t border-stone-200 bg-amber-50">
+                <p class="text-xs font-bold text-amber-800 mb-1">⚠️ CRITICAL REMINDER</p>
+                <p class="text-xs text-amber-700 leading-relaxed">
+                    Do NOT discuss MAB AI Strategies LLC. Postponed indefinitely.
+                </p>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto bg-white relative">
+            
+            <!-- VIEW: DASHBOARD -->
+            <div id="view-dashboard" class="p-6 md:p-10 space-y-8 block">
+                <header class="mb-8">
+                    <h2 class="text-3xl font-light text-slate-800">Operational Command Center</h2>
+                    <p class="text-slate-500 mt-2 max-w-2xl">
+                        Welcome to your daily preparation hub. This section synthesizes the "Daily Checklist" and strict behavioral protocols ("Dos and Don'ts") derived from your research plan. Use this to maintain discipline during the internal investigation phase.
+                    </p>
+                </header>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Behavioral Protocols -->
+                    <div class="bg-stone-50 border border-stone-200 rounded-lg p-6">
+                        <h3 class="font-bold text-lg mb-4 text-slate-700 flex items-center gap-2">
+                            <span>🛑</span> Protocol: Dos & Don'ts
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="p-3 bg-red-50 border-l-4 border-red-400 rounded-r">
+                                <strong class="text-red-800 block text-sm mb-1">STRICTLY AVOID</strong>
+                                <ul class="list-disc list-inside text-sm text-red-700 space-y-1">
+                                    <li>Discussing MAB AI Strategies business.</li>
+                                    <li>Soliciting colleagues for outside work.</li>
+                                    <li>Signing documents without counsel review.</li>
+                                    <li>Admitting fault in written communications.</li>
+                                </ul>
+                            </div>
+                            <div class="p-3 bg-green-50 border-l-4 border-green-400 rounded-r">
+                                <strong class="text-green-800 block text-sm mb-1">ALWAYS DO</strong>
+                                <ul class="list-disc list-inside text-sm text-green-700 space-y-1">
+                                    <li>Preserve all document revisions.</li>
+                                    <li>Record HR conversations (if legally clear).</li>
+                                    <li>Answer investigation questions narrowly.</li>
+                                    <li>Defer specific answers to "check records".</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Readiness Score Chart -->
+                    <div class="bg-stone-50 border border-stone-200 rounded-lg p-6 flex flex-col items-center justify-center">
+                        <h3 class="font-bold text-lg mb-2 text-slate-700 w-full text-left">Phase Readiness</h3>
+                        <div class="chart-container">
+                            <canvas id="readinessChart"></canvas>
+                        </div>
+                        <p class="text-xs text-center text-slate-500 mt-2">Current preparedness across 5 key legal vectors.</p>
+                    </div>
+                </div>
+
+                <!-- Daily Checklist -->
+                <div class="bg-white border border-stone-200 rounded-lg shadow-sm">
+                    <div class="p-4 border-b border-stone-100 bg-slate-50 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-700">Daily Execution Checklist</h3>
+                        <span id="progress-text" class="text-sm font-mono text-slate-500">0/5 Completed</span>
+                    </div>
+                    <div class="divide-y divide-stone-100" id="checklist-container">
+                        <!-- JS generated items -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: TIMELINE MAP -->
+            <div id="view-timeline" class="p-6 md:p-10 space-y-8 hidden">
+                <header class="mb-8">
+                    <h2 class="text-3xl font-light text-slate-800">Interactive Timeline Map</h2>
+                    <p class="text-slate-500 mt-2 max-w-2xl">
+                        This strategic map visualizes the "If X, Then Y" decision trees. It covers the flow from Internal HR Investigation through to potential Litigation or Settlement outcomes, highlighting the "Pincer Movement" strategy.
+                    </p>
+                </header>
+
+                <div class="flex flex-col md:flex-row gap-8">
+                    <!-- Timeline Visualizer -->
+                    <div class="w-full md:w-1/3 bg-slate-50 p-4 rounded-lg border border-slate-200 h-[600px] overflow-y-auto">
+                        <h4 class="font-bold text-slate-400 uppercase text-xs mb-4 tracking-wider">Strategic Sequence</h4>
+                        <div class="relative border-l-2 border-slate-300 ml-3 space-y-8 pl-6 py-2" id="timeline-steps">
+                            <!-- Steps generated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Detail Panel -->
+                    <div class="w-full md:w-2/3 bg-white border border-slate-200 rounded-lg p-6 shadow-sm sticky top-0">
+                        <div id="timeline-detail-content" class="h-full flex flex-col justify-center items-center text-center text-slate-400">
+                            <span class="text-4xl mb-2">👈</span>
+                            <p>Select a stage on the timeline to view strategic actions and decision branches.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: REBUTTALS -->
+            <div id="view-rebuttals" class="p-6 md:p-10 space-y-8 hidden">
+                <header class="mb-8">
+                    <h2 class="text-3xl font-light text-slate-800">Evidence & Rebuttal Matrix</h2>
+                    <p class="text-slate-500 mt-2 max-w-2xl">
+                        Synthesizing specific rebuttals to the Final Written Warning. This section links allegations (Ardmore, Ground Logistics, etc.) to your gathered evidence (iPad counts, emails).
+                    </p>
+                </header>
+
+                <div class="grid grid-cols-1 gap-6" id="rebuttal-container">
+                    <!-- JS generated cards -->
+                </div>
+            </div>
+
+            <!-- VIEW: SCENARIOS -->
+            <div id="view-scenarios" class="p-6 md:p-10 space-y-8 hidden">
+                <header class="mb-8">
+                    <h2 class="text-3xl font-light text-slate-800">Scenario Planner & Risk Assessment</h2>
+                    <p class="text-slate-500 mt-2 max-w-2xl">
+                        Visualizing the three primary outcomes: Termination for Cause, Voluntary Resignation, and Negotiated Separation. This helps you weigh financial gain against legal risk.
+                    </p>
+                </header>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Chart -->
+                    <div class="bg-white p-6 rounded-lg border border-stone-200 shadow-sm">
+                        <h3 class="font-bold text-slate-700 mb-4 text-center">Outcome Comparison</h3>
+                        <div class="chart-container">
+                            <canvas id="scenarioChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Text Analysis -->
+                    <div class="space-y-4">
+                        <div class="bg-red-50 p-5 rounded-lg border border-red-100">
+                            <h4 class="font-bold text-red-800 mb-2">Scenario A: Termination for Cause</h4>
+                            <p class="text-sm text-red-700 mb-2"><strong>Risk:</strong> High (Record tarnished, potential IP lawsuit).</p>
+                            <p class="text-sm text-red-700"><strong>Financial:</strong> $0 Severance. Unemployment contested.</p>
+                            <div class="mt-3 text-xs bg-white bg-opacity-50 p-2 rounded">
+                                <strong>Strategy:</strong> If this happens, immediately trigger "Litigation Prep" and file wrongful termination claim based on retaliation evidence.
+                            </div>
+                        </div>
+
+                        <div class="bg-blue-50 p-5 rounded-lg border border-blue-100">
+                            <h4 class="font-bold text-blue-800 mb-2">Scenario B: Voluntary Resignation</h4>
+                            <p class="text-sm text-blue-700 mb-2"><strong>Risk:</strong> Low (Clean break).</p>
+                            <p class="text-sm text-blue-700"><strong>Financial:</strong> $0 Severance. Retain equity (vested).</p>
+                            <div class="mt-3 text-xs bg-white bg-opacity-50 p-2 rounded">
+                                <strong>Strategy:</strong> Only accept if IP/MAB AI risk is deemed critical and imminent. "Live to fight another day."
+                            </div>
+                        </div>
+
+                        <div class="bg-emerald-50 p-5 rounded-lg border border-emerald-100 ring-2 ring-emerald-200">
+                            <h4 class="font-bold text-emerald-800 mb-2">Scenario C: Negotiated Separation (Target)</h4>
+                            <p class="text-sm text-emerald-700 mb-2"><strong>Risk:</strong> Medium (Requires "Leveraged Negotiation").</p>
+                            <p class="text-sm text-emerald-700"><strong>Financial:</strong> 3-6 Months Severance + Cobra.</p>
+                            <div class="mt-3 text-xs bg-white bg-opacity-50 p-2 rounded">
+                                <strong>Strategy:</strong> Use the "Pincer Movement." Leverage the strength of the retaliation claim to force a settlement in exchange for a release of claims.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-stone-100 p-6 rounded-lg border border-stone-200">
+                    <h3 class="font-bold text-slate-700 mb-2">Legal Risk Analysis: MAB AI Strategies</h3>
+                    <p class="text-sm text-slate-600">
+                        <strong>"Hired to Invent" Doctrine:</strong> Even if VZ doesn't know *yet*, they may claim ownership of IP created during employment.
+                        <br><br>
+                        <strong>Corporate Opportunity:</strong> Risk that VZ claims MAB AI competes with their business interests.
+                        <br><br>
+                        <strong>Mitigation:</strong> Ensure clear separation of resources (laptop, time, network). Do not launch until separation agreement is signed and includes IP release.
+                    </p>
+                </div>
+            </div>
+
+            <!-- VIEW: WITNESSES -->
+            <div id="view-witnesses" class="p-6 md:p-10 space-y-8 hidden">
+                <header class="mb-8">
+                    <h2 class="text-3xl font-light text-slate-800">Witness Preparation & Facts</h2>
+                    <p class="text-slate-500 mt-2 max-w-2xl">
+                        A roster of potential witnesses identified in your documents (Jay, Baker, Nim, Yerik). Use this to prepare for depositions or internal interviews.
+                    </p>
+                </header>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="witness-container">
+                    <!-- JS Generated -->
+                </div>
+            </div>
+
+            <!-- VIEW: AI TOOLS -->
+            <div id="view-ai-tools" class="p-6 md:p-10 space-y-8 hidden bg-indigo-50/30 min-h-full">
+                <header class="mb-8">
+                    <h2 class="text-3xl font-light text-indigo-900 flex items-center gap-2">
+                        <span>✨</span> AI Strategy Center
+                    </h2>
+                    <p class="text-slate-600 mt-2 max-w-2xl">
+                        Advanced tools powered by Gemini to actively manage your defense. Simulate hostile interrogations, generate negotiation scripts, and sanitize your communications.
+                    </p>
+                </header>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    
+                    <!-- Tool 1: Risk Scanner -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border border-indigo-100 flex flex-col h-[400px]">
+                        <div class="flex items-center gap-3 mb-4 border-b border-indigo-50 pb-3 flex-shrink-0">
+                            <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-xl">🛡️</div>
+                            <div>
+                                <h3 class="font-bold text-indigo-900">Communication Risk Scanner</h3>
+                                <p class="text-xs text-indigo-600">Sanitize emails for "Dos & Don'ts".</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex-grow flex flex-col space-y-3 overflow-hidden">
+                            <textarea id="risk-input" class="w-full flex-grow p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none text-sm resize-none" placeholder="Paste your draft here..."></textarea>
+                            
+                            <button onclick="analyzeRisk()" id="btn-scan" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2 shadow-sm text-sm">
+                                <span>✨ Scan for Legal Risks</span>
+                            </button>
+                        </div>
+                        <div id="risk-output-container" class="hidden mt-3 max-h-32 overflow-y-auto bg-slate-50 p-3 rounded border border-slate-200 text-sm">
+                            <div id="risk-output" class="prose prose-sm prose-indigo"></div>
+                        </div>
+                    </div>
+
+                    <!-- Tool 2: Rebuttal Generator -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border border-indigo-100 flex flex-col h-[400px]">
+                        <div class="flex items-center gap-3 mb-4 border-b border-indigo-50 pb-3 flex-shrink-0">
+                            <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-xl">⚔️</div>
+                            <div>
+                                <h3 class="font-bold text-indigo-900">Strategic Rebuttal Drafter</h3>
+                                <p class="text-xs text-indigo-600">Generate "Pincer Movement" defenses.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex-grow flex flex-col space-y-3 overflow-hidden">
+                            <textarea id="rebuttal-input" class="w-full flex-grow p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none text-sm resize-none" placeholder="Describe the new allegation..."></textarea>
+                            
+                            <button onclick="generateRebuttal()" id="btn-draft" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2 shadow-sm text-sm">
+                                <span>✨ Draft Strategy</span>
+                            </button>
+                        </div>
+                         <div id="rebuttal-output-container" class="hidden mt-3 max-h-32 overflow-y-auto bg-slate-50 p-3 rounded border border-slate-200 text-sm">
+                            <div id="rebuttal-output" class="prose prose-sm prose-indigo"></div>
+                        </div>
+                    </div>
+
+                    <!-- Tool 3: Mock Interrogation Simulator -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border border-indigo-100 flex flex-col h-[500px]">
+                        <div class="flex items-center gap-3 mb-4 border-b border-indigo-50 pb-3 flex-shrink-0 justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-xl">🎭</div>
+                                <div>
+                                    <h3 class="font-bold text-indigo-900">Mock Interrogation Sim</h3>
+                                    <p class="text-xs text-indigo-600">Practice "Narrow Answers" vs HR.</p>
+                                </div>
+                            </div>
+                            <button onclick="resetSimulation()" class="text-xs text-slate-400 hover:text-indigo-600">Reset</button>
+                        </div>
+                        
+                        <!-- Chat Window -->
+                        <div id="sim-chat-window" class="flex-grow bg-slate-50 rounded-lg border border-slate-200 p-4 overflow-y-auto flex flex-col mb-3">
+                            <div class="chat-bubble chat-bubble-ai">
+                                <p><strong>HR Investigator:</strong> Good morning. We're looking into some discrepancies in the Ardmore inventory logs. Can you explain why the count was off by 14 units last Tuesday?</p>
+                            </div>
+                        </div>
+
+                        <!-- Input -->
+                        <div class="flex gap-2">
+                            <input type="text" id="sim-input" class="flex-grow p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none text-sm" placeholder="Type your response..." onkeydown="if(event.key === 'Enter') sendSimMessage()">
+                            <button onclick="sendSimMessage()" id="btn-sim-send" class="w-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold flex items-center justify-center transition-all">
+                                ➤
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tool 4: Negotiation Script Generator -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border border-indigo-100 flex flex-col h-[500px]">
+                         <div class="flex items-center gap-3 mb-4 border-b border-indigo-50 pb-3 flex-shrink-0">
+                            <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-xl">🤝</div>
+                            <div>
+                                <h3 class="font-bold text-indigo-900">Negotiation Script Writer</h3>
+                                <p class="text-xs text-indigo-600">Counter-offers for your Attorney.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex-grow flex flex-col space-y-3 overflow-hidden">
+                            <div class="space-y-1">
+                                <label class="text-xs font-bold text-slate-500 uppercase">Current Offer / Status</label>
+                                <textarea id="negotiation-input" class="w-full h-24 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none text-sm resize-none" placeholder="e.g. They offered 2 weeks severance and want me to sign a general release immediately."></textarea>
+                            </div>
+
+                            <button onclick="generateNegotiation()" id="btn-neg" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2 shadow-sm text-sm">
+                                <span>✨ Generate Counter-Script</span>
+                            </button>
+                            
+                            <div id="neg-output-container" class="hidden flex-grow overflow-y-auto bg-slate-50 p-3 rounded border border-slate-200 text-sm">
+                                <div id="neg-output" class="prose prose-sm prose-emerald"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Logic Script -->
+    <script>
+        // --- GEMINI API SETUP ---
+        const apiKey = ""; // System provides key at runtime
+        
+        // Sim State
+        let simHistory = [
+            { role: "model", parts: [{ text: "You are a rigid, corporate HR investigator for Verizon. You are interviewing an employee regarding allegations of 'time theft' and 'inventory mismanagement'. Your goal is to get them to admit fault or inconsistency. User is practicing their defense. After the user replies, provide a brief 'Coach Note' (in bold) critiquing their answer (e.g. 'Good job staying narrow' or 'Warning: You over-explained'), then ask the next probing question." }] },
+            { role: "model", parts: [{ text: "Good morning. We're looking into some discrepancies in the Ardmore inventory logs. Can you explain why the count was off by 14 units last Tuesday?" }] }
+        ];
+
+        async function callGeminiAPI(prompt, outputId, btnId, loadingText, isChat = false, history = []) {
+            const btn = document.getElementById(btnId);
+            const originalBtnText = btn.innerHTML;
+            
+            // UI Loading
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<div class="spinner border-white border-t-transparent mr-2"></div> ${loadingText}`;
+            }
+
+            // Prepare Payload
+            let contents = [];
+            if (isChat) {
+                contents = [...history, { role: "user", parts: [{ text: prompt }] }];
+            } else {
+                contents = [{ parts: [{ text: prompt }] }];
+            }
+
+            try {
+                // Exponential backoff logic
+                const maxRetries = 5;
+                let attempt = 0;
+                let success = false;
+                let resultText = "";
+
+                while (attempt < maxRetries && !success) {
+                    try {
+                        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ contents: contents })
+                        });
+
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        
+                        const data = await response.json();
+                        resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+                        success = true;
+
+                    } catch (e) {
+                        attempt++;
+                        if (attempt >= maxRetries) throw e;
+                        await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+                    }
+                }
+
+                return resultText;
+
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                return `Error: ${error.message}`;
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalBtnText;
+                }
+            }
+        }
+
+        // --- SPECIFIC TOOLS ---
+
+        async function analyzeRisk() {
+            const userText = document.getElementById('risk-input').value;
+            if (!userText.trim()) return;
+            const container = document.getElementById('risk-output-container');
+            const output = document.getElementById('risk-output');
+            
+            container.classList.remove('hidden');
+            output.innerHTML = '<span class="text-slate-400 italic">Analyzing...</span>';
+
+            const systemContext = `Act as a legal defense strategist for an employee under investigation.
+            Strict Rules: NO admitting fault. NO mentioning side business. NO emotional language. Be narrow and factual.
+            Task: Analyze draft, flag risks, and rewrite safely.`;
+            
+            const result = await callGeminiAPI(`${systemContext}\n\nDraft: "${userText}"`, null, 'btn-scan', 'Scanning...');
+            output.innerHTML = marked.parse(result);
+        }
+
+        async function generateRebuttal() {
+            const userText = document.getElementById('rebuttal-input').value;
+            if (!userText.trim()) return;
+            const container = document.getElementById('rebuttal-output-container');
+            const output = document.getElementById('rebuttal-output');
+
+            container.classList.remove('hidden');
+            output.innerHTML = '<span class="text-slate-400 italic">Drafting...</span>';
+
+            const systemContext = `Strategy: 'The Pincer Movement' (Retaliation claim). Tone: Professional, firm, demanding evidence.
+            Task: Draft a response strategy (Core defense, Evidence needed, Response paragraph) for this allegation.`;
+
+            const result = await callGeminiAPI(`${systemContext}\n\nAllegation: "${userText}"`, null, 'btn-draft', 'Drafting...');
+            output.innerHTML = marked.parse(result);
+        }
+
+        async function generateNegotiation() {
+            const userText = document.getElementById('negotiation-input').value;
+            if (!userText.trim()) return;
+            const container = document.getElementById('neg-output-container');
+            const output = document.getElementById('neg-output');
+
+            container.classList.remove('hidden');
+            output.innerHTML = '<span class="text-slate-400 italic">Strategizing...</span>';
+
+            const systemContext = `Act as a relentless employment attorney. Strategy: Leveraged Negotiation. 
+            Goal: Mutual Release, Severance, Clean Record.
+            Task: Generate a counter-script/email based on the current offer. Subtly imply retaliation/legal exposure if they don't settle.`;
+
+            const result = await callGeminiAPI(`${systemContext}\n\nCurrent Status: "${userText}"`, null, 'btn-neg', 'Generating...');
+            output.innerHTML = marked.parse(result);
+        }
+
+        // --- SIMULATION LOGIC ---
+
+        async function sendSimMessage() {
+            const inputEl = document.getElementById('sim-input');
+            const text = inputEl.value.trim();
+            if (!text) return;
+
+            // Add User Message to UI
+            addChatBubble(text, 'user');
+            inputEl.value = '';
+            
+            // Add Loading Bubble
+            const loadingId = addChatBubble('<span class="typing-indicator"></span><span class="typing-indicator"></span><span class="typing-indicator"></span>', 'ai', true);
+
+            // Call API
+            const responseText = await callGeminiAPI(text, null, null, null, true, simHistory);
+
+            // Update History
+            simHistory.push({ role: "user", parts: [{ text: text }] });
+            simHistory.push({ role: "model", parts: [{ text: responseText }] });
+
+            // Remove Loading, Add Response
+            document.getElementById(loadingId).remove();
+            addChatBubble(marked.parse(responseText), 'ai');
+        }
+
+        function addChatBubble(html, type, isTemp = false) {
+            const container = document.getElementById('sim-chat-window');
+            const div = document.createElement('div');
+            div.className = `chat-bubble chat-bubble-${type} ${type === 'user' ? 'ml-auto' : 'mr-auto'}`;
+            div.innerHTML = html;
+            if (isTemp) div.id = `temp-${Date.now()}`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return div.id;
+        }
+
+        function resetSimulation() {
+             document.getElementById('sim-chat-window').innerHTML = `
+                <div class="chat-bubble chat-bubble-ai">
+                    <p><strong>HR Investigator:</strong> Good morning. We're looking into some discrepancies in the Ardmore inventory logs. Can you explain why the count was off by 14 units last Tuesday?</p>
+                </div>
+             `;
+             simHistory = [
+                { role: "model", parts: [{ text: "You are a rigid, corporate HR investigator for Verizon... (System Prompt)" }] },
+                { role: "model", parts: [{ text: "Good morning. We're looking into some discrepancies in the Ardmore inventory logs. Can you explain why the count was off by 14 units last Tuesday?" }] }
+            ];
+        }
+
+
+        // State Management & Original Logic (Preserved)
+        const state = {
+            currentTab: 'dashboard',
+            checklist: [
+                { id: 1, text: "Review 'Urgent Verizon Official Exit' notes", done: false },
+                { id: 2, text: "Compile iPad count logs for Ardmore rebuttal", done: false },
+                { id: 3, text: "Preserve 'ard3emails' (print to PDF home)", done: false },
+                { id: 4, text: "Contact Legal Counsel (Consultation Prep)", done: false },
+                { id: 5, text: "Update Witness List contact info", done: false }
+            ]
+        };
+
+        const timelineData = [
+            {
+                id: 'hr_investigation',
+                title: '1. Internal HR Investigation',
+                icon: '🔍',
+                desc: 'Current Phase. Rebuttal of Warning.',
+                details: {
+                    action: "Respond to allegations narrowly. Present 'iPad counts' and 'partnership' evidence.",
+                    if_success: "Warning Rescinded (Unlikely but builds record)",
+                    if_fail: "Proceeds to Final Warning / Termination Review",
+                    risks: "Admitting to 'side hustle' inadvertently.",
+                    docs: "Refer to: Formal Grievance Doc"
+                }
+            },
+            {
+                id: 'legal_consult',
+                title: '2. Legal Consultation',
+                icon: '⚖️',
+                desc: 'Obtain Representation.',
+                details: {
+                    action: "Hire employment attorney. Prepare 'Evidence Package'.",
+                    if_success: "Attorney takes over comms (Shield established)",
+                    if_fail: "Self-representation (High Risk)",
+                    risks: "Cost vs. Benefit analysis.",
+                    docs: "Refer to: Employment Retaliation Case Research"
+                }
+            },
+            {
+                id: 'negotiation',
+                title: '3. Leveraged Negotiation',
+                icon: '🤝',
+                desc: 'The "Pincer Movement".',
+                details: {
+                    action: "Attorney presents Retaliation claim + Offer to settle.",
+                    if_success: "Scenario C: Negotiated Separation ($$$)",
+                    if_fail: "VZ digs in -> Termination for Cause",
+                    risks: "VZ counter-investigates MAB AI Strategies.",
+                    docs: "Refer to: Verizon Legal Action & Business Launch"
+                }
+            },
+            {
+                id: 'outcome',
+                title: '4. Outcomes & Litigation',
+                icon: '🏛️',
+                desc: 'Final Resolution Paths.',
+                details: {
+                    action: "Execute Settlement or File Lawsuit.",
+                    if_success: "Business Launch permitted. Clean record.",
+                    if_fail: "Long litigation battle.",
+                    risks: "Public court records.",
+                    docs: "Refer to: Litigation Prep Docs"
+                }
+            }
+        ];
+
+        const rebuttalsData = [
+            {
+                topic: "Ardmore / iPad Counts",
+                allegation: "Failure to manage inventory/counts.",
+                defense: "Evidence shows proactive communication. Counts were reconciled weekly.",
+                evidence: "File: 'ard3emails', Inventory Logs (Date stamped)"
+            },
+            {
+                topic: "Ground Logistics",
+                allegation: "Operational inefficiency.",
+                defense: "External factors (vendor delay) caused issues, documented in emails.",
+                evidence: "Vendor correspondence chain, 'Ground Logistics' Report"
+            },
+            {
+                topic: "Mosaddegh / Moyer",
+                allegation: "Professional conduct / Specific incident.",
+                defense: "Context missing from HR report. Witness (Nim) can corroborate actual events.",
+                evidence: "Witness Statement: Nim, Slack timestamps"
+            }
+        ];
+
+        const witnessData = [
+            { name: "Jay", role: "Manager/Peer", status: "Friendly", keyFact: "Can confirm workload distribution." },
+            { name: "Baker", role: "Direct Report", status: "Neutral", keyFact: "Witnessed the Ardmore conversation." },
+            { name: "Nim", role: "External Partner", status: "Friendly", keyFact: "Can rebut the Mosaddegh allegation." },
+            { name: "Yerik", role: "Colleague", status: "Hostile", keyFact: "Likely source of complaint? Prepare cross-examination." }
+        ];
+
+        function switchTab(tabId) {
+            state.currentTab = tabId;
+            document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('[id^="nav-"]').forEach(btn => {
+                btn.classList.remove('active-tab');
+                btn.classList.add('inactive-tab');
+                if (btn.id === 'nav-ai-tools') {
+                     btn.classList.remove('text-indigo-700', 'bg-indigo-50');
+                     btn.classList.add('text-indigo-600', 'hover:bg-indigo-50');
+                }
+            });
+
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            activeBtn.classList.remove('inactive-tab');
+            activeBtn.classList.add('active-tab');
+             
+            if (tabId === 'ai-tools') {
+                 activeBtn.classList.add('bg-indigo-50', 'text-indigo-800');
+            }
+
+            if (tabId === 'dashboard') updateReadinessChart();
+            if (tabId === 'scenarios') updateScenarioChart();
+        }
+
+        function renderChecklist() {
+            const container = document.getElementById('checklist-container');
+            container.innerHTML = '';
+            let completed = 0;
+
+            state.checklist.forEach(item => {
+                if(item.done) completed++;
+                const div = document.createElement('div');
+                div.className = "p-4 flex items-start gap-3 hover:bg-slate-50 transition-colors cursor-pointer";
+                div.onclick = () => toggleCheck(item.id);
+                
+                div.innerHTML = `
+                    <div class="mt-1 w-5 h-5 rounded border ${item.done ? 'bg-slate-700 border-slate-700' : 'border-slate-300 bg-white'} flex items-center justify-center flex-shrink-0">
+                        ${item.done ? '<span class="text-white text-xs">✓</span>' : ''}
+                    </div>
+                    <span class="${item.done ? 'line-through text-slate-400' : 'text-slate-700'}">${item.text}</span>
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('progress-text').innerText = `${completed}/${state.checklist.length} Completed`;
+        }
+
+        function toggleCheck(id) {
+            const item = state.checklist.find(i => i.id === id);
+            item.done = !item.done;
+            renderChecklist();
+            updateReadinessChart();
+        }
+
+        function renderTimeline() {
+            const container = document.getElementById('timeline-steps');
+            container.innerHTML = '';
+            timelineData.forEach(step => {
+                const node = document.createElement('div');
+                node.className = "relative pl-6 cursor-pointer timeline-node group";
+                node.onclick = () => showTimelineDetail(step);
+                node.innerHTML = `
+                    <div class="absolute -left-[1.6rem] top-0 bg-white border-2 border-slate-300 w-10 h-10 rounded-full flex items-center justify-center text-lg group-hover:border-slate-600 group-hover:bg-slate-100 transition-colors z-10">
+                        ${step.icon}
+                    </div>
+                    <h4 class="font-bold text-slate-700 group-hover:text-slate-900">${step.title}</h4>
+                    <p class="text-xs text-slate-500">${step.desc}</p>
+                `;
+                container.appendChild(node);
+            });
+        }
+
+        function showTimelineDetail(step) {
+            const container = document.getElementById('timeline-detail-content');
+            container.innerHTML = `
+                <div class="text-left w-full space-y-6 animate-fade-in">
+                    <div class="border-b border-slate-100 pb-4">
+                        <h3 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                            <span>${step.icon}</span> ${step.title}
+                        </h3>
+                        <p class="text-slate-500 mt-1">${step.desc}</p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-4">
+                        <div class="bg-blue-50 p-4 rounded border border-blue-100">
+                            <strong class="text-blue-800 text-sm uppercase tracking-wide">Primary Action</strong>
+                            <p class="text-blue-900 mt-1">${step.details.action}</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-green-50 p-4 rounded border border-green-100">
+                                <strong class="text-green-800 text-sm uppercase tracking-wide">If Success (Path A)</strong>
+                                <p class="text-green-900 mt-1 text-sm">${step.details.if_success}</p>
+                            </div>
+                            <div class="bg-red-50 p-4 rounded border border-red-100">
+                                <strong class="text-red-800 text-sm uppercase tracking-wide">If Failure (Path B)</strong>
+                                <p class="text-red-900 mt-1 text-sm">${step.details.if_fail}</p>
+                            </div>
+                        </div>
+                        <div class="bg-amber-50 p-4 rounded border border-amber-100">
+                            <strong class="text-amber-800 text-sm uppercase tracking-wide">Critical Risks</strong>
+                            <p class="text-amber-900 mt-1 text-sm">${step.details.risks}</p>
+                        </div>
+                        <p class="text-xs text-slate-400 italic mt-4">Reference Docs: ${step.details.docs}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderRebuttals() {
+            const container = document.getElementById('rebuttal-container');
+            rebuttalsData.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-white border border-slate-200 p-5 rounded-lg shadow-sm hover:shadow-md transition-shadow";
+                card.innerHTML = `
+                    <div class="flex flex-col md:flex-row md:items-start gap-4">
+                        <div class="flex-1">
+                            <h4 class="font-bold text-slate-800 text-lg mb-1">${item.topic}</h4>
+                            <p class="text-xs font-semibold text-red-500 uppercase tracking-wide mb-2">Allegation</p>
+                            <p class="text-slate-600 mb-4 bg-red-50 p-2 rounded text-sm">${item.allegation}</p>
+                            <p class="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">Specific Rebuttal Strategy</p>
+                            <p class="text-slate-700 mb-2">${item.defense}</p>
+                        </div>
+                        <div class="w-full md:w-1/3 bg-slate-50 p-3 rounded border border-slate-200 text-sm">
+                            <strong class="text-slate-500 block mb-1">📂 Required Evidence</strong>
+                            <ul class="list-disc list-inside text-slate-600">
+                                <li>${item.evidence}</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderWitnesses() {
+            const container = document.getElementById('witness-container');
+            witnessData.forEach(person => {
+                let badgeColor = person.status === 'Friendly' ? 'bg-green-100 text-green-800' : 
+                                 person.status === 'Hostile' ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-800';
+                const card = document.createElement('div');
+                card.className = "bg-white border border-slate-200 p-5 rounded-lg text-center shadow-sm";
+                card.innerHTML = `
+                    <div class="w-12 h-12 bg-slate-100 rounded-full mx-auto flex items-center justify-center text-xl mb-3">👤</div>
+                    <h4 class="font-bold text-slate-800">${person.name}</h4>
+                    <p class="text-xs text-slate-500 mb-3">${person.role}</p>
+                    <span class="inline-block px-2 py-1 rounded-full text-xs font-bold ${badgeColor} mb-4">${person.status}</span>
+                    <div class="text-left bg-slate-50 p-3 rounded text-sm border border-slate-100">
+                        <strong class="text-slate-600 text-xs block mb-1">KEY TESTIMONY:</strong>
+                        ${person.keyFact}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        let chartInstance = null;
+        let scenarioChartInstance = null;
+
+        function updateReadinessChart() {
+            const ctx = document.getElementById('readinessChart').getContext('2d');
+            const completedCount = state.checklist.filter(i => i.done).length;
+            const baseScore = (completedCount / state.checklist.length) * 100;
+
+            const data = {
+                labels: ['Evidence Collection', 'Legal Strategy', 'Financial Prep', 'Mental Toughness', 'Doc Preservation'],
+                datasets: [{
+                    label: 'Readiness Level',
+                    data: [baseScore + 10, baseScore, 60, 80, 90],
+                    backgroundColor: 'rgba(30, 41, 59, 0.2)',
+                    borderColor: 'rgba(30, 41, 59, 1)',
+                    pointBackgroundColor: 'rgba(30, 41, 59, 1)',
+                    borderWidth: 2
+                }]
+            };
+
+            if (chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: data,
+                options: {
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { display: false }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function updateScenarioChart() {
+            const ctx = document.getElementById('scenarioChart').getContext('2d');
+            if (scenarioChartInstance) return;
+
+            scenarioChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Termination (Cause)', 'Voluntary Resignation', 'Negotiated (Target)'],
+                    datasets: [
+                        {
+                            label: 'Financial Outcome',
+                            data: [10, 30, 90],
+                            backgroundColor: ['#fca5a5', '#93c5fd', '#6ee7b7']
+                        },
+                        {
+                            label: 'Legal Risk (IP)',
+                            data: [90, 20, 40],
+                            backgroundColor: ['#b91c1c', '#1d4ed8', '#047857']
+                        }
+                    ]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: { display: true, text: 'Scale (0-100)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderChecklist();
+            renderTimeline();
+            renderRebuttals();
+            renderWitnesses();
+            updateReadinessChart();
+        });
+
+    </script>
+</body>
+</html>
